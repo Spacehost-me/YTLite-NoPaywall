@@ -6,10 +6,6 @@
 - (void)updateYTLiteSectionWithEntry:(id)entry;
 @end
 
-@interface YTAppSettingsSectionItemController (YTLite)
-- (void)updateYTLiteSectionWithEntry:(id)entry;
-@end
-
 static const NSInteger YTLiteSection = 789;
 static __weak YTSettingsViewController *ytlSettingsVC = nil;
 
