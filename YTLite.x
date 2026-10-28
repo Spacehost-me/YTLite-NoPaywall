@@ -34,7 +34,7 @@ static UIImage *YTImageNamed(NSString *imageName) {
 
 %hook YTIElementRenderer
 - (NSData *)elementData {
-    if (self.hasCompatibilityOptions && self.compatibilityOptions.hasAdLoggingData && ytlBool(@"noAds")) return nil;
+    if (self.hasCompatibilityOptions && self.compatibilityOptions.hasAdLoggingData && ytlBool(@"noAds")) return [NSData data];
 
     NSString *description = [self description];
 
@@ -46,7 +46,7 @@ static UIImage *YTImageNamed(NSString *imageName) {
     NSArray *shortsToRemove = @[@"shorts_shelf.eml", @"shorts_video_cell.eml", @"6Shorts"];
     for (NSString *shorts in shortsToRemove) {
         if (ytlBool(@"hideShorts") && [description containsString:shorts] && ![description containsString:@"history*"]) {
-            return nil;
+            return [NSData data];
         }
     }
 
