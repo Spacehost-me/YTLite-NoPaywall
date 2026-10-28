@@ -62,8 +62,9 @@ static UIImage *YTImageNamed(NSString *imageName) {
             YTIItemSectionRenderer *sectionRenderer = renderers.itemSectionRenderer;
             YTIItemSectionSupportedRenderers *firstObject = [sectionRenderer.contentsArray firstObject];
             BOOL isAd = firstObject.hasPromotedVideoRenderer || firstObject.hasCompactPromotedVideoRenderer || firstObject.hasPromotedVideoInlineMutedRenderer;
-            if (!isAd && [firstObject respondsToSelector:@selector(hasAdSlotRenderer)]) {
-                isAd = [firstObject hasAdSlotRenderer];
+            if (!isAd) {
+                NSString *desc = [firstObject description];
+                isAd = [desc containsString:@"adSlotRenderer"] || [desc containsString:@"ad_slot"];
             }
             return isAd;
         }];
