@@ -38,7 +38,7 @@ static UIImage *YTImageNamed(NSString *imageName) {
 
     NSString *description = [self description];
 
-    NSArray *ads = @[@"brand_promo", @"product_carousel", @"product_engagement_panel", @"product_item", @"text_search_ad", @"text_image_button_layout", @"carousel_headered_layout", @"carousel_footered_layout", @"square_image_layout", @"landscape_image_wide_button_layout", @"feed_ad_metadata"];
+    NSArray *ads = @[@"brand_promo", @"product_carousel", @"product_engagement_panel", @"product_item", @"text_search_ad", @"text_image_button_layout", @"carousel_headered_layout", @"carousel_footered_layout", @"square_image_layout", @"landscape_image_wide_button_layout", @"feed_ad_metadata", @"ad_body", @"ad_badge", @"shopping_carousel", @"product_ad_body", @"statement_banner_ad", @"browse_feed_ad", @"official_card", @"compact_banner", @"banner_promo", @"promoted_video_inlined", @"action_companion_ad"];
     if (ytlBool(@"noAds") && [ads containsObject:description]) {
         return [NSData data];
     }
@@ -61,7 +61,11 @@ static UIImage *YTImageNamed(NSString *imageName) {
         NSIndexSet *removeIndexes = [contentsArray indexesOfObjectsPassingTest:^BOOL(YTISectionListSupportedRenderers *renderers, NSUInteger idx, BOOL *stop) {
             YTIItemSectionRenderer *sectionRenderer = renderers.itemSectionRenderer;
             YTIItemSectionSupportedRenderers *firstObject = [sectionRenderer.contentsArray firstObject];
-            return firstObject.hasPromotedVideoRenderer || firstObject.hasCompactPromotedVideoRenderer || firstObject.hasPromotedVideoInlineMutedRenderer;
+            BOOL isAd = firstObject.hasPromotedVideoRenderer || firstObject.hasCompactPromotedVideoRenderer || firstObject.hasPromotedVideoInlineMutedRenderer;
+            if (!isAd && [firstObject respondsToSelector:@selector(hasAdSlotRenderer)]) {
+                isAd = [firstObject hasAdSlotRenderer];
+            }
+            return isAd;
         }];
         [contentsArray removeObjectsAtIndexes:removeIndexes];
     } %orig;
@@ -507,9 +511,12 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
         }
     }
 
-    MLQuickMenuVideoQualitySettingFormatConstraint *fc = [[%c(MLQuickMenuVideoQualitySettingFormatConstraint) alloc] init];
-    if ([fc respondsToSelector:@selector(initWithVideoQualitySetting:formatSelectionReason:qualityLabel:)]) {
-        [self.activeVideo setVideoFormatConstraint:[fc initWithVideoQualitySetting:3 formatSelectionReason:2 qualityLabel:qualityLabel]];
+    Class fcClass = %c(MLQuickMenuVideoQualitySettingFormatConstraint);
+    if (fcClass) {
+        MLQuickMenuVideoQualitySettingFormatConstraint *fc = [[fcClass alloc] init];
+        if ([fc respondsToSelector:@selector(initWithVideoQualitySetting:formatSelectionReason:qualityLabel:)]) {
+            [self.activeVideo setVideoFormatConstraint:[fc initWithVideoQualitySetting:3 formatSelectionReason:2 qualityLabel:qualityLabel]];
+        }
     }
 }
 
@@ -631,53 +638,57 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
 
 // Hide buttons under the video player (@PoomSmart)
 static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *identifiers) {
-    if (!nodeController || ![nodeController respondsToSelector:@selector(children)]) return NO;
+    @try {
+        if (!nodeController || ![nodeController respondsToSelector:@selector(children)]) return NO;
 
-    for (id child in [nodeController children]) {
-        if ([child isKindOfClass:%c(ELMNodeController)]) {
-            NSArray <ELMComponent *> *elmChildren = [(ELMNodeController *)child children];
-            for (ELMComponent *elmChild in elmChildren) {
-                for (NSString *identifier in identifiers) {
-                    if ([[elmChild description] containsString:identifier])
-                        return YES;
+        for (id child in [nodeController children]) {
+            if ([child isKindOfClass:%c(ELMNodeController)]) {
+                NSArray <ELMComponent *> *elmChildren = [(ELMNodeController *)child children];
+                for (ELMComponent *elmChild in elmChildren) {
+                    for (NSString *identifier in identifiers) {
+                        if ([[elmChild description] containsString:identifier])
+                            return YES;
+                    }
                 }
             }
-        }
 
-        if ([child isKindOfClass:%c(ASNodeController)]) {
-            ASDisplayNode *childNode = ((ASNodeController *)child).node;
-            NSArray *yogaChildren = [childNode respondsToSelector:@selector(yogaChildren)] ? childNode.yogaChildren : nil;
-            for (ASDisplayNode *displayNode in yogaChildren) {
-                if ([identifiers containsObject:displayNode.accessibilityIdentifier])
-                    return YES;
+            if ([child isKindOfClass:%c(ASNodeController)]) {
+                ASDisplayNode *childNode = ((ASNodeController *)child).node;
+                NSArray *yogaChildren = [childNode respondsToSelector:@selector(yogaChildren)] ? childNode.yogaChildren : nil;
+                for (ASDisplayNode *displayNode in yogaChildren) {
+                    if ([identifiers containsObject:displayNode.accessibilityIdentifier])
+                        return YES;
+                }
+
+                return findCell(child, identifiers);
             }
 
-            return findCell(child, identifiers);
+            return NO;
         }
-
-        return NO;
-    }
+    } @catch (NSException *e) {}
     return NO;
 }
 
 %hook ASCollectionView
 - (CGSize)sizeForElement:(ASCollectionElement *)element {
-    if ([self.accessibilityIdentifier isEqualToString:@"id.video.scrollable_action_bar"]) {
-        ASCellNode *node = [element node];
-        ASNodeController *nodeController = [node controller];
+    @try {
+        if ([self.accessibilityIdentifier isEqualToString:@"id.video.scrollable_action_bar"]) {
+            ASCellNode *node = [element node];
+            ASNodeController *nodeController = [node controller];
 
-        if (ytlBool(@"noPlayerRemixButton") && findCell(nodeController, @[@"id.video.remix.button"])) {
-            return CGSizeZero;
-        }
+            if (ytlBool(@"noPlayerRemixButton") && findCell(nodeController, @[@"id.video.remix.button"])) {
+                return CGSizeZero;
+            }
 
-        if (ytlBool(@"noPlayerClipButton") && findCell(nodeController, @[@"clip_button.eml"])) {
-            return CGSizeZero;
-        }
+            if (ytlBool(@"noPlayerClipButton") && findCell(nodeController, @[@"clip_button.eml"])) {
+                return CGSizeZero;
+            }
 
-        if (ytlBool(@"noPlayerDownloadButton") && findCell(nodeController, @[@"id.ui.add_to.offline.button"])) {
-            return CGSizeZero;
+            if (ytlBool(@"noPlayerDownloadButton") && findCell(nodeController, @[@"id.ui.add_to.offline.button"])) {
+                return CGSizeZero;
+            }
         }
-    }
+    } @catch (NSException *e) {}
 
     return %orig;
 }
@@ -689,9 +700,8 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
     UICollectionViewCell *cell = %orig;
 
     if ([cell isKindOfClass:objc_lookUpClass("_ASCollectionViewCell")]) {
-        _ASCollectionViewCell *cell = %orig;
         if ([cell respondsToSelector:@selector(node)]) {
-            NSString *idToRemove = [[cell node] accessibilityIdentifier];
+            NSString *idToRemove = [[((_ASCollectionViewCell *)cell) node] accessibilityIdentifier];
             if ([idToRemove isEqualToString:@"statement_banner.view"] ||
                 (([idToRemove isEqualToString:@"eml.shorts-grid"] || [idToRemove isEqualToString:@"eml.shorts-shelf"]) && ytlBool(@"hideShorts"))) {
                 [self removeCellsAtIndexPath:indexPath];
@@ -700,12 +710,19 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
     } else if (([cell isKindOfClass:objc_lookUpClass("YTReelShelfCell")] && ytlBool(@"hideShorts")) ||
         ([cell isKindOfClass:objc_lookUpClass("YTHorizontalCardListCell")] && ytlBool(@"noContinueWatching"))) {
         [self removeCellsAtIndexPath:indexPath];
-    } return %orig;
+    }
+    return cell;
 }
 
 %new
 - (void)removeCellsAtIndexPath:(NSIndexPath *)indexPath {
-    [self deleteItemsAtIndexPaths:@[indexPath]];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @try {
+            [self performBatchUpdates:^{
+                [self deleteItemsAtIndexPaths:@[indexPath]];
+            } completion:nil];
+        } @catch (NSException *e) {}
+    });
 }
 %end
 
@@ -1325,6 +1342,16 @@ static void manageSpeedmasterYTLite(UILongPressGestureRecognizer *gesture, YTMai
     YTInlinePlayerScrubUserEducationView *edu = (YTInlinePlayerScrubUserEducationView *)delegate.videoPlayerOverlayView.scrubUserEducationView;
     if (edu) manageSpeedmasterYTLite(gesture, delegate, edu);
 }
+%end
+
+// Block Masthead Ads (YouTube 21.x)
+%hook YTIAdSlotRenderer
+- (BOOL)hasAdSlotMetadata { return ytlBool(@"noAds") ? NO : %orig; }
+- (BOOL)hasAd { return ytlBool(@"noAds") ? NO : %orig; }
+%end
+
+%hook YTIAdDisplayAdRenderer
+- (BOOL)hasAdVideoId { return ytlBool(@"noAds") ? NO : %orig; }
 %end
 
 // Disable Right-To-Left Formatting

@@ -28,9 +28,18 @@ static NSString *GetCacheSize() {
 + (NSArray *)settingsCategoryOrder {
     NSArray *order = %orig;
     NSMutableArray *mutableOrder = [order mutableCopy];
-    NSUInteger insertIndex = [order indexOfObject:@(1)];
+    if ([mutableOrder containsObject:@(YTLiteSection)]) return mutableOrder;
+
+    NSUInteger insertIndex = NSNotFound;
+    for (NSNumber *cat in @[@(1), @(0)]) {
+        insertIndex = [mutableOrder indexOfObject:cat];
+        if (insertIndex != NSNotFound) break;
+    }
+
     if (insertIndex != NSNotFound)
         [mutableOrder insertObject:@(YTLiteSection) atIndex:insertIndex + 1];
+    else if (mutableOrder.count > 0)
+        [mutableOrder insertObject:@(YTLiteSection) atIndex:1];
     else
         [mutableOrder addObject:@(YTLiteSection)];
     return mutableOrder;
@@ -116,6 +125,8 @@ static NSString *GetCacheSize() {
     NSMutableArray *sectionItems = [NSMutableArray array];
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
     YTSettingsViewController *settingsViewController = safeKVC(self, @"_settingsViewControllerDelegate");
+    if (!settingsViewController) settingsViewController = safeKVC(self, @"_dataDelegate");
+    if (!settingsViewController) settingsViewController = safeKVC(self, @"_delegate");
     if (!settingsViewController) return;
 
     YTSettingsSectionItem *space = [%c(YTSettingsSectionItem) itemWithTitle:nil accessibilityIdentifier:@"YTLiteSectionItem" detailTextBlock:nil selectBlock:nil];
@@ -623,9 +634,12 @@ static NSString *GetCacheSize() {
 
     [sectionItems addObject:version];
 
-    BOOL isNew = [settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:icon:titleDescription:headerHidden:)];
-    isNew ? [settingsViewController setSectionItems:sectionItems forCategory:YTLiteSection title:@"YTLite" icon:nil titleDescription:nil headerHidden:NO]
-          : [settingsViewController setSectionItems:sectionItems forCategory:YTLiteSection title:@"YTLite" titleDescription:nil headerHidden:NO];
+    if ([settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:icon:titleDescription:headerHidden:)])
+        [settingsViewController setSectionItems:sectionItems forCategory:YTLiteSection title:@"YTLite" icon:nil titleDescription:nil headerHidden:NO];
+    else if ([settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:titleDescription:headerHidden:)])
+        [settingsViewController setSectionItems:sectionItems forCategory:YTLiteSection title:@"YTLite" titleDescription:nil headerHidden:NO];
+    else if ([settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:)])
+        [settingsViewController performSelector:@selector(setSectionItems:forCategory:title:) withObject:sectionItems withObject:@(YTLiteSection)];
 
 }
 
