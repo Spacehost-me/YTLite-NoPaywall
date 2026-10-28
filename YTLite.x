@@ -4,6 +4,20 @@ static UIImage *YTImageNamed(NSString *imageName) {
     return [UIImage imageNamed:imageName inBundle:[NSBundle mainBundle] compatibleWithTraitCollection:nil];
 }
 
+static UIColor *oledForColor(UIColor *color) {
+    if (!color) return color;
+    if (@available(iOS 13.0, *)) {
+        if (UITraitCollection.currentTraitCollection.userInterfaceStyle != UIUserInterfaceStyleDark) return color;
+    }
+    CGFloat r = 0, g = 0, b = 0, a = 1;
+    if ([color getRed:&r green:&g blue:&b alpha:&a]) {
+        if (r < 0.22 && g < 0.22 && b < 0.22 && a > 0.5) {
+            return [UIColor colorWithRed:0 green:0 blue:0 alpha:a];
+        }
+    }
+    return color;
+}
+
 // YouTube-X (https://github.com/PoomSmart/YouTube-X/)
 // Background Playback
 %hook YTIPlayabilityStatus
@@ -48,6 +62,18 @@ static UIImage *YTImageNamed(NSString *imageName) {
         if (ytlBool(@"hideShorts") && [description containsString:shorts] && ![description containsString:@"history*"]) {
             return [NSData data];
         }
+    }
+
+    if (ytlBool(@"hideCommunityPosts") && ([description containsString:@"post_base_wrapper"] || [description containsString:@"backstage_post"])) {
+        return [NSData data];
+    }
+
+    if (ytlBool(@"hideMixPlaylists") && ([description containsString:@"compact_radio"] || [description containsString:@"radio_renderer"])) {
+        return [NSData data];
+    }
+
+    if (ytlBool(@"hideLiveInFeed") && [description containsString:@"is_live"]) {
+        return [NSData data];
     }
 
     return %orig;
@@ -250,6 +276,11 @@ static UIImage *YTImageNamed(NSString *imageName) {
 - (BOOL)enableSwipeToRemoveInPlaylistWatchEp { return YES; }
 // Enable Old-style Minibar For Playlist Panel
 - (BOOL)queueClientGlobalConfigEnableFloatingPlaylistMinibar { return ytlBool(@"playlistOldMinibar") ? NO : %orig; }
+// Disable Ambient Mode
+- (BOOL)enableCinematicContainerOnClient { return ytlBool(@"disableAmbientMode") ? NO : %orig; }
+- (BOOL)enableCinematicLighting { return ytlBool(@"disableAmbientMode") ? NO : %orig; }
+- (BOOL)iosEnableCinematicContainerOnClient { return ytlBool(@"disableAmbientMode") ? NO : %orig; }
+- (BOOL)enableTurnOffCinematicForFrameWithBlackBars { return ytlBool(@"disableAmbientMode") ? YES : %orig; }
 %end
 
 // Remove Dark Background in Overlay
@@ -413,9 +444,12 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
     }
 }
 
+static __weak YTPlayerViewController *ytlActivePlayer = nil;
+
 %hook YTPlayerViewController
 - (void)loadWithPlayerTransition:(id)arg1 playbackConfig:(id)arg2 {
     %orig;
+    ytlActivePlayer = self;
 
     if (ytlInt(@"wiFiQualityIndex") != 0 || ytlInt(@"cellQualityIndex") != 0) [self performSelector:@selector(autoQuality) withObject:nil afterDelay:1.0];
     if (ytlBool(@"autoFullscreen")) [self performSelector:@selector(autoFullscreen) withObject:nil afterDelay:0.75];
@@ -709,7 +743,7 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
             }
         }
     } else if (([cell isKindOfClass:objc_lookUpClass("YTReelShelfCell")] && ytlBool(@"hideShorts")) ||
-        ([cell isKindOfClass:objc_lookUpClass("YTHorizontalCardListCell")] && ytlBool(@"noContinueWatching"))) {
+        ([cell isKindOfClass:objc_lookUpClass("YTHorizontalCardListCell")] && (ytlBool(@"noContinueWatching") || ytlBool(@"hideHorizontalFeeds")))) {
         [self removeCellsAtIndexPath:indexPath];
     }
     return cell;
@@ -767,6 +801,7 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
 - (void)setShareButton:(id)arg1 { if (!ytlBool(@"hideShortsShare")) %orig; }
 - (void)setNativePivotButton:(id)arg1 { if (!ytlBool(@"hideShortsAvatars")) %orig; }
 - (void)setPivotButtonElementRenderer:(id)arg1 { if (!ytlBool(@"hideShortsAvatars")) %orig; }
+- (void)setSoundButton:(id)arg1 { if (!ytlBool(@"hideShortsAudioButton")) %orig; }
 %end
 
 %hook YTReelHeaderView
@@ -795,6 +830,8 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
 - (void)setActionElement:(id)renderer { if (!ytlBool(@"hideShortsPromoCards")) %orig; }
 - (void)setBadgeRenderer:(id)renderer { if (!ytlBool(@"hideShortsThanks")) %orig; }
 - (void)setMultiFormatLinkElementRenderer:(id)renderer { if (!ytlBool(@"hideShortsSource")) %orig; }
+- (void)setSubscribeButtonRenderer:(id)renderer { if (!ytlBool(@"hideShortsSubscribe")) %orig; }
+- (void)setProductListRenderer:(id)renderer { if (!ytlBool(@"hideShortsProducts")) %orig; }
 %end
 
 static BOOL isOverlayShown = YES;
@@ -1389,7 +1426,254 @@ static NSURL *newCoverURL(NSURL *originalURL) {
 // }
 // %end
 
+// OLED Theme
+%hook UIView
+- (void)setBackgroundColor:(UIColor *)color {
+    if (ytlBool(@"oledTheme")) {
+        %orig(oledForColor(color));
+    } else {
+        %orig;
+    }
+}
+%end
+
+// OLED Keyboard
+%hook UITextField
+- (UIKeyboardAppearance)keyboardAppearance {
+    return ytlBool(@"oledKeyboard") ? UIKeyboardAppearanceDark : %orig;
+}
+%end
+
+%hook UITextView
+- (UIKeyboardAppearance)keyboardAppearance {
+    return ytlBool(@"oledKeyboard") ? UIKeyboardAppearanceDark : %orig;
+}
+%end
+
+// Compact Toast
+%hook YTToastResponderEvent
+- (void)send {
+    %orig;
+    if (ytlBool(@"compactToast")) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            for (UIWindow *window in [UIApplication sharedApplication].windows) {
+                for (UIView *subview in window.subviews) {
+                    if ([subview isKindOfClass:NSClassFromString(@"YTToastView")]) {
+                        [UIView animateWithDuration:0.3 animations:^{
+                            subview.alpha = 0;
+                        } completion:^(BOOL finished) {
+                            [subview removeFromSuperview];
+                        }];
+                    }
+                }
+            }
+        });
+    }
+}
+%end
+
+// Hide Overlay Title
+%hook YTMainAppVideoPlayerOverlayView
+- (void)setTitleViewText:(NSString *)text {
+    if (ytlBool(@"hideOverlayTitle")) {
+        %orig(@"");
+    } else {
+        %orig;
+    }
+}
+%end
+
+// Seek Anywhere
+%hook YTColdConfig
+- (BOOL)iosPlayerGestureSeekAnywhere { return ytlBool(@"seekAnywhere") ? YES : %orig; }
+%end
+
+// Overlay Buttons: Mute, Lock, Sleep Timer
+static BOOL ytlOverlayLocked = NO;
+static BOOL ytlIsMuted = NO;
+static float ytlSavedVolume = 1.0;
+static UISlider *ytlVolumeSlider = nil;
+static NSTimer *ytlSleepTimer = nil;
+static NSDate *ytlSleepEndDate = nil;
+
+static void initVolumeSlider(void) {
+    if (ytlVolumeSlider) return;
+    Class MPVolumeViewClass = NSClassFromString(@"MPVolumeView");
+    if (!MPVolumeViewClass) return;
+    UIView *volumeView = [[MPVolumeViewClass alloc] initWithFrame:CGRectMake(-1000, -1000, 100, 40)];
+    for (UIView *subview in [volumeView subviews]) {
+        if ([subview isKindOfClass:[UISlider class]]) {
+            ytlVolumeSlider = (UISlider *)subview;
+            break;
+        }
+    }
+    if (ytlVolumeSlider) {
+        UIWindow *keyWindow = nil;
+        for (UIWindow *window in [UIApplication sharedApplication].windows) {
+            if (window.isKeyWindow) { keyWindow = window; break; }
+        }
+        if (keyWindow) [keyWindow addSubview:volumeView];
+    }
+}
+
+static void stopSleepTimer(void) {
+    if (ytlSleepTimer) {
+        [ytlSleepTimer invalidate];
+        ytlSleepTimer = nil;
+    }
+    ytlSleepEndDate = nil;
+}
+
+static void startSleepTimerWithDuration(NSTimeInterval duration) {
+    stopSleepTimer();
+    ytlSleepEndDate = [NSDate dateWithTimeIntervalSinceNow:duration];
+    __weak YTPlayerViewController *weakPlayer = ytlActivePlayer;
+    ytlSleepTimer = [NSTimer scheduledTimerWithTimeInterval:duration repeats:NO block:^(NSTimer *timer) {
+        YTPlayerViewController *player = weakPlayer;
+        if (player) [player pause];
+        stopSleepTimer();
+        [[%c(YTToastResponderEvent) eventWithMessage:LOC(@"SleepTimerEnded") firstResponder:[%c(YTUIUtils) topViewControllerForPresenting]] send];
+    }];
+}
+
+%hook YTMainAppVideoPlayerOverlayView
+- (void)layoutSubviews {
+    %orig;
+
+    if (ytlBool(@"muteButton") && ![self viewWithTag:1001]) {
+        UIButton *muteBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+        muteBtn.tag = 1001;
+        if (@available(iOS 13.0, *)) {
+            [muteBtn setImage:[UIImage systemImageNamed:ytlIsMuted ? @"speaker.slash.fill" : @"speaker.wave.2.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+        }
+        muteBtn.tintColor = [UIColor whiteColor];
+        muteBtn.translatesAutoresizingMaskIntoConstraints = NO;
+        [muteBtn addTarget:self action:@selector(handleYTLMuteTap:) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:muteBtn];
+        [NSLayoutConstraint activateConstraints:@[
+            [muteBtn.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [muteBtn.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-80],
+            [muteBtn.widthAnchor constraintEqualToConstant:36],
+            [muteBtn.heightAnchor constraintEqualToConstant:36]
+        ]];
+    }
+
+    if (ytlBool(@"lockButton") && ![self viewWithTag:1002]) {
+        UIButton *lockBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+        lockBtn.tag = 1002;
+        if (@available(iOS 13.0, *)) {
+            [lockBtn setImage:[UIImage systemImageNamed:ytlOverlayLocked ? @"lock.fill" : @"lock.open.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+        }
+        lockBtn.tintColor = [UIColor whiteColor];
+        lockBtn.translatesAutoresizingMaskIntoConstraints = NO;
+        [lockBtn addTarget:self action:@selector(handleYTLLockTap:) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:lockBtn];
+        [NSLayoutConstraint activateConstraints:@[
+            [lockBtn.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [lockBtn.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-120],
+            [lockBtn.widthAnchor constraintEqualToConstant:36],
+            [lockBtn.heightAnchor constraintEqualToConstant:36]
+        ]];
+    }
+
+    if (ytlBool(@"sleepTimer") && ![self viewWithTag:1003]) {
+        UIButton *sleepBtn = [UIButton buttonWithType:UIButtonTypeCustom];
+        sleepBtn.tag = 1003;
+        if (@available(iOS 13.0, *)) {
+            [sleepBtn setImage:[UIImage systemImageNamed:ytlSleepTimer ? @"moon.zzz.fill" : @"moon.zzz" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+        }
+        sleepBtn.tintColor = [UIColor whiteColor];
+        sleepBtn.translatesAutoresizingMaskIntoConstraints = NO;
+        [sleepBtn addTarget:self action:@selector(handleYTLSleepTap:) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:sleepBtn];
+        [NSLayoutConstraint activateConstraints:@[
+            [sleepBtn.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+            [sleepBtn.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-160],
+            [sleepBtn.widthAnchor constraintEqualToConstant:36],
+            [sleepBtn.heightAnchor constraintEqualToConstant:36]
+        ]];
+    }
+
+    if (ytlOverlayLocked) {
+        for (UIView *subview in self.subviews) {
+            if (subview.tag != 1002) subview.userInteractionEnabled = NO;
+        }
+    }
+}
+
+%new
+- (void)handleYTLMuteTap:(UIButton *)sender {
+    initVolumeSlider();
+    ytlIsMuted = !ytlIsMuted;
+    if (ytlIsMuted) {
+        ytlSavedVolume = ytlVolumeSlider.value;
+        [ytlVolumeSlider setValue:0 animated:NO];
+        [ytlVolumeSlider sendActionsForControlEvents:UIControlEventValueChanged];
+    } else {
+        [ytlVolumeSlider setValue:ytlSavedVolume animated:NO];
+        [ytlVolumeSlider sendActionsForControlEvents:UIControlEventValueChanged];
+    }
+    if (@available(iOS 13.0, *)) {
+        [sender setImage:[UIImage systemImageNamed:ytlIsMuted ? @"speaker.slash.fill" : @"speaker.wave.2.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+    }
+    [[%c(YTToastResponderEvent) eventWithMessage:ytlIsMuted ? @"Muted" : @"Unmuted" firstResponder:[%c(YTUIUtils) topViewControllerForPresenting]] send];
+}
+
+%new
+- (void)handleYTLLockTap:(UIButton *)sender {
+    ytlOverlayLocked = !ytlOverlayLocked;
+    if (@available(iOS 13.0, *)) {
+        [sender setImage:[UIImage systemImageNamed:ytlOverlayLocked ? @"lock.fill" : @"lock.open.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+    }
+    for (UIView *subview in self.subviews) {
+        if (subview.tag != 1002) subview.userInteractionEnabled = !ytlOverlayLocked;
+    }
+    [[%c(YTToastResponderEvent) eventWithMessage:ytlOverlayLocked ? @"Locked" : @"Unlocked" firstResponder:[%c(YTUIUtils) topViewControllerForPresenting]] send];
+}
+
+%new
+- (void)handleYTLSleepTap:(UIButton *)sender {
+    if (ytlSleepTimer) {
+        stopSleepTimer();
+        if (@available(iOS 13.0, *)) {
+            [sender setImage:[UIImage systemImageNamed:@"moon.zzz" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+        }
+        [[%c(YTToastResponderEvent) eventWithMessage:LOC(@"SleepTimerOff") firstResponder:[%c(YTUIUtils) topViewControllerForPresenting]] send];
+        return;
+    }
+
+    YTDefaultSheetController *sheetController = [%c(YTDefaultSheetController) sheetControllerWithParentResponder:nil];
+
+    NSArray *durations = @[@5, @10, @15, @30, @60, @120];
+    NSArray *labels = @[LOC(@"5min"), LOC(@"10min"), LOC(@"15min"), LOC(@"30min"), LOC(@"60min"), LOC(@"120min")];
+
+    for (NSUInteger i = 0; i < durations.count; i++) {
+        NSTimeInterval duration = [durations[i] doubleValue] * 60.0;
+        NSString *label = labels[i];
+        __weak UIButton *weakSender = sender;
+        [sheetController addAction:[%c(YTActionSheetAction) actionWithTitle:label iconImage:nil style:0 handler:^{
+            startSleepTimerWithDuration(duration);
+            if (@available(iOS 13.0, *)) {
+                [weakSender setImage:[UIImage systemImageNamed:@"moon.zzz.fill" withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:20]] forState:UIControlStateNormal];
+            }
+            [[%c(YTToastResponderEvent) eventWithMessage:[NSString stringWithFormat:@"%@ %@", LOC(@"SleepTimerSet"), label] firstResponder:[%c(YTUIUtils) topViewControllerForPresenting]] send];
+        }]];
+    }
+
+    [sheetController presentFromViewController:[%c(YTUIUtils) topViewControllerForPresenting] animated:YES completion:nil];
+}
+%end
+
 %ctor {
+    if (ytlBool(@"autoClearCache")) {
+        NSString *cachesPath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
+        NSFileManager *fm = [NSFileManager defaultManager];
+        NSArray *cacheContents = [fm contentsOfDirectoryAtPath:cachesPath error:nil];
+        for (NSString *item in cacheContents) {
+            [fm removeItemAtPath:[cachesPath stringByAppendingPathComponent:item] error:nil];
+        }
+    }
+
     if (ytlBool(@"shortsOnlyMode") && (ytlBool(@"removeShorts") || ytlBool(@"reExplore"))) {
         ytlSetBool(NO, @"removeShorts");
         ytlSetBool(NO, @"reExplore");

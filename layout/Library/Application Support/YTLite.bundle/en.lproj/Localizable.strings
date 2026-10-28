@@ -956,3 +956,14 @@
 /* Live playback */
 "Player.Live" = "Live";
 "Auto" = "Auto";
+
+/* Sleep Timer */
+"SleepTimerEnded" = "Sleep timer ended";
+"SleepTimerOff" = "Sleep timer off";
+"SleepTimerSet" = "Sleep timer set:";
+"5min" = "5 minutes";
+"10min" = "10 minutes";
+"15min" = "15 minutes";
+"30min" = "30 minutes";
+"60min" = "60 minutes";
+"120min" = "120 minutes";

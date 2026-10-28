@@ -200,7 +200,13 @@ static NSString *GetCacheSize() {
                 [self switchWithTitle:@"NoPromotionCards" key:@"noPromotionCards"],
                 [self switchWithTitle:@"NoWatermarks" key:@"noWatermarks"],
                 [self switchWithTitle:@"VideoEndTime" key:@"videoEndTime"],
-                [self switchWithTitle:@"24hrFormat" key:@"24hrFormat"]
+                [self switchWithTitle:@"24hrFormat" key:@"24hrFormat"],
+                [self switchWithTitle:@"HideOverlayTitle" key:@"hideOverlayTitle"],
+                [self switchWithTitle:@"LockButton" key:@"lockButton"],
+                [self switchWithTitle:@"MuteButton" key:@"muteButton"],
+                [self switchWithTitle:@"SleepTimer" key:@"sleepTimer"],
+                [self switchWithTitle:@"DisableAmbientMode" key:@"disableAmbientMode"],
+                [self switchWithTitle:@"SeekAnywhere" key:@"seekAnywhere"]
             ];
 
             YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"Overlay") pickerSectionTitle:nil rows:rows selectedItemIndex:NSNotFound parentResponder:[self parentResponder]];
@@ -276,7 +282,10 @@ static NSString *GetCacheSize() {
                 [self switchWithTitle:@"HideShortsChannelName" key:@"hideShortsChannelName"],
                 [self switchWithTitle:@"HideShortsDescription" key:@"hideShortsDescription"],
                 [self switchWithTitle:@"HideShortsAudioTrack" key:@"hideShortsAudioTrack"],
-                [self switchWithTitle:@"NoPromotionCards" key:@"hideShortsPromoCards"]
+                [self switchWithTitle:@"NoPromotionCards" key:@"hideShortsPromoCards"],
+                [self switchWithTitle:@"HideShortsProducts" key:@"hideShortsProducts"],
+                [self switchWithTitle:@"HideShortsSubscribe" key:@"hideShortsSubscribe"],
+                [self switchWithTitle:@"HideShortsAudioButton" key:@"hideShortsAudioButton"]
             ];
 
             YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"Shorts") pickerSectionTitle:nil rows:rows selectedItemIndex:NSNotFound parentResponder:[self parentResponder]];
@@ -339,7 +348,14 @@ static NSString *GetCacheSize() {
                 [self switchWithTitle:@"StickSortComments" key:@"stickSortComments"],
                 [self switchWithTitle:@"HideSortComments" key:@"hideSortComments"],
                 [self switchWithTitle:@"PlaylistOldMinibar" key:@"playlistOldMinibar"],
-                [self switchWithTitle:@"DisableRTL" key:@"disableRTL"]
+                [self switchWithTitle:@"DisableRTL" key:@"disableRTL"],
+                [self switchWithTitle:@"RemoveCommunityPosts" key:@"hideCommunityPosts"],
+                [self switchWithTitle:@"RemoveMixPlaylists" key:@"hideMixPlaylists"],
+                [self switchWithTitle:@"RemoveHorizontalFeeds" key:@"hideHorizontalFeeds"],
+                [self switchWithTitle:@"RemoveLiveVids" key:@"hideLiveInFeed"],
+                [self switchWithTitle:@"OledTheme" key:@"oledTheme"],
+                [self switchWithTitle:@"OledKeyboard" key:@"oledKeyboard"],
+                [self switchWithTitle:@"CompactToast" key:@"compactToast"]
             ];
 
             YTSettingsPickerViewController *picker = [[%c(YTSettingsPickerViewController) alloc] initWithNavTitle:LOC(@"Other") pickerSectionTitle:nil rows:rows selectedItemIndex:NSNotFound parentResponder:[self parentResponder]];
@@ -591,6 +607,7 @@ static NSString *GetCacheSize() {
         selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
             NSArray <YTSettingsSectionItem *> *rows = @[
                 [self switchWithTitle:@"Advanced" key:@"advancedMode"],
+                [self switchWithTitle:@"ClearCacheAtStart" key:@"autoClearCache"],
 
                 [%c(YTSettingsSectionItem) itemWithTitle:LOC(@"ClearCache") titleDescription:nil accessibilityIdentifier:@"YTLiteSectionItem" detailTextBlock:^NSString *() { return GetCacheSize(); } selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
                     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
