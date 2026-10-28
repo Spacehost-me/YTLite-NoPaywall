@@ -1,13 +1,15 @@
 #import "YTLite.h"
 #import <objc/runtime.h>
-#import <substrate.h>
+
+@interface YTSettingsGroupData : NSObject
+@property (nonatomic, readonly) NSArray *orderedCategories;
+@end
 
 @interface YTSettingsSectionItemManager (YTLite)
 - (void)updateYTLiteSectionWithEntry:(id)entry;
 @end
 
 static const NSInteger YTLiteSection = 789;
-static __weak YTSettingsViewController *ytlSettingsVC = nil;
 
 static NSString *GetCacheSize() {
     NSString *cachePath = NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES).firstObject;
@@ -51,26 +53,22 @@ static NSArray *YTLiteInsertCategory(NSArray *order) {
 }
 %end
 
-%hook YTSettingsViewController
-- (void)viewDidLoad {
-    %orig;
-    ytlSettingsVC = self;
-}
-
-- (void)viewWillAppear:(BOOL)animated {
-    %orig;
-    ytlSettingsVC = self;
-
-    // Force-trigger YTLite section after stock sections have been set up
-    __weak YTSettingsViewController *weakSelf = self;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        YTSettingsViewController *vc = weakSelf;
-        if (!vc) return;
-        id manager = safeKVC(vc, @"_sectionItemManager");
-        if (manager && [manager respondsToSelector:@selector(updateYTLiteSectionWithEntry:)]) {
-            [manager updateYTLiteSectionWithEntry:nil];
-        }
-    });
+%hook YTSettingsGroupData
+- (NSArray *)orderedCategories {
+    NSArray *orig = %orig;
+    if (!orig) return orig;
+    if ([orig containsObject:@(YTLiteSection)]) return orig;
+    NSMutableArray *mutableCategories = [orig mutableCopy];
+    NSUInteger insertIndex = NSNotFound;
+    for (NSNumber *cat in @[@(1), @(0)]) {
+        insertIndex = [mutableCategories indexOfObject:cat];
+        if (insertIndex != NSNotFound) break;
+    }
+    if (insertIndex != NSNotFound)
+        [mutableCategories insertObject:@(YTLiteSection) atIndex:insertIndex + 1];
+    else
+        [mutableCategories addObject:@(YTLiteSection)];
+    return mutableCategories;
 }
 %end
 
@@ -153,31 +151,8 @@ static NSArray *YTLiteInsertCategory(NSArray *order) {
     NSMutableArray *sectionItems = [NSMutableArray array];
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
 
-    Class settingsVCClass = objc_getClass("YTSettingsViewController");
-    YTSettingsViewController *settingsViewController = nil;
-
-    // Try to get the settings VC — in newer YouTube, _delegate may point to an
-    // intermediate controller, not the VC directly
-    for (NSString *key in @[@"_delegate", @"_settingsViewControllerDelegate", @"_dataDelegate"]) {
-        id obj = safeKVC(self, key);
-        if (!obj) continue;
-        if ([obj isKindOfClass:settingsVCClass]) {
-            settingsViewController = obj;
-            break;
-        }
-        // Walk one level deeper — the intermediate controller's delegate may be the VC
-        for (NSString *innerKey in @[@"_delegate", @"_settingsViewControllerDelegate", @"_dataDelegate"]) {
-            id inner = safeKVC(obj, innerKey);
-            if (inner && [inner isKindOfClass:settingsVCClass]) {
-                settingsViewController = inner;
-                break;
-            }
-        }
-        if (settingsViewController) break;
-    }
-
-    // Fallback to the statically captured VC reference
-    if (!settingsViewController) settingsViewController = ytlSettingsVC;
+    YTSettingsViewController *settingsViewController = (YTSettingsViewController *)safeKVC(self, @"_settingsViewControllerDelegate");
+    if (!settingsViewController) settingsViewController = (YTSettingsViewController *)safeKVC(self, @"_dataDelegate");
     if (!settingsViewController) return;
 
     YTSettingsSectionItem *space = [%c(YTSettingsSectionItem) itemWithTitle:nil accessibilityIdentifier:@"YTLiteSectionItem" detailTextBlock:nil selectBlock:nil];
@@ -702,30 +677,10 @@ static NSArray *YTLiteInsertCategory(NSArray *order) {
 
     [sectionItems addObject:version];
 
-    BOOL didSet = NO;
     if ([settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:icon:titleDescription:headerHidden:)]) {
         [settingsViewController setSectionItems:sectionItems forCategory:YTLiteSection title:@"YTLite" icon:nil titleDescription:nil headerHidden:NO];
-        didSet = YES;
     } else if ([settingsViewController respondsToSelector:@selector(setSectionItems:forCategory:title:titleDescription:headerHidden:)]) {
         [settingsViewController setSectionItems:sectionItems forCategory:YTLiteSection title:@"YTLite" titleDescription:nil headerHidden:NO];
-        didSet = YES;
-    }
-
-    if (!didSet) {
-        // Fallback: try the new section controller API
-        SEL newSel = @selector(updateSettingsSectionControllersForCategory:withSettingController:sectionItems:headerHidden:);
-        if ([settingsViewController respondsToSelector:newSel]) {
-            NSInvocation *inv = [NSInvocation invocationWithMethodSignature:[settingsViewController methodSignatureForSelector:newSel]];
-            [inv setSelector:newSel];
-            NSUInteger cat = YTLiteSection;
-            id nilCtrl = nil;
-            BOOL hidden = NO;
-            [inv setArgument:&cat atIndex:2];
-            [inv setArgument:&nilCtrl atIndex:3];
-            [inv setArgument:&sectionItems atIndex:4];
-            [inv setArgument:&hidden atIndex:5];
-            [inv invokeWithTarget:settingsViewController];
-        }
     }
 }
 
@@ -762,78 +717,7 @@ static NSArray *YTLiteInsertCategory(NSArray *order) {
 }
 %end
 
-static NSArray *(*orig_groupSettingsCategoryOrder)(id, SEL);
-static NSArray *hook_groupSettingsCategoryOrder(id self, SEL _cmd) {
-    return YTLiteInsertCategory(orig_groupSettingsCategoryOrder(self, _cmd));
-}
-
-static id getManagerFromController(id controller) {
-    id manager = safeKVC(controller, @"_sectionItemManager");
-    if (manager) return manager;
-    // Try via the controller's delegate (likely the VC)
-    id delegate = safeKVC(controller, @"_delegate");
-    if (delegate) manager = safeKVC(delegate, @"_sectionItemManager");
-    if (manager) return manager;
-    // Fallback to the static VC ref
-    if (ytlSettingsVC) manager = safeKVC(ytlSettingsVC, @"_sectionItemManager");
-    return manager;
-}
-
-static void (*orig_controllerUpdateSection)(id, SEL, NSUInteger, id);
-static void hook_controllerUpdateSection(id self, SEL _cmd, NSUInteger category, id entry) {
-    if (category == YTLiteSection) {
-        id manager = getManagerFromController(self);
-        if (manager && [manager respondsToSelector:@selector(updateYTLiteSectionWithEntry:)]) {
-            [manager updateYTLiteSectionWithEntry:entry];
-            return;
-        }
-    }
-    orig_controllerUpdateSection(self, _cmd, category, entry);
-}
-
-static void (*orig_controllerUpdateCategorySection)(id, SEL, NSUInteger, id, id);
-static void hook_controllerUpdateCategorySection(id self, SEL _cmd, NSUInteger category, id entry, id items) {
-    if (category == YTLiteSection) {
-        id manager = getManagerFromController(self);
-        if (manager && [manager respondsToSelector:@selector(updateYTLiteSectionWithEntry:)]) {
-            [manager updateYTLiteSectionWithEntry:entry];
-            return;
-        }
-    }
-    orig_controllerUpdateCategorySection(self, _cmd, category, entry, items);
-}
-
 %ctor {
     %init;
-
-    // Hook YTAppSettingsGroupPresentationData.settingsCategoryOrder (class method)
-    Class groupClass = objc_getClass("YTAppSettingsGroupPresentationData");
-    if (groupClass) {
-        SEL sel = @selector(settingsCategoryOrder);
-        Method m = class_getClassMethod(groupClass, sel);
-        if (m) {
-            MSHookMessageEx(object_getClass(groupClass), sel,
-                (IMP)hook_groupSettingsCategoryOrder,
-                (IMP *)&orig_groupSettingsCategoryOrder);
-        }
-    }
-
-    // Hook YTAppSettingsSectionItemController.updateSectionForCategory:withEntry:
-    Class ctrlClass = objc_getClass("YTAppSettingsSectionItemController");
-    if (ctrlClass) {
-        SEL updateSel = @selector(updateSectionForCategory:withEntry:);
-        if (class_getInstanceMethod(ctrlClass, updateSel)) {
-            MSHookMessageEx(ctrlClass, updateSel,
-                (IMP)hook_controllerUpdateSection,
-                (IMP *)&orig_controllerUpdateSection);
-        }
-
-        SEL updateCatSel = @selector(updateCategorySectionForCategory:withEntry:additionalSectionItems:);
-        if (class_getInstanceMethod(ctrlClass, updateCatSel)) {
-            MSHookMessageEx(ctrlClass, updateCatSel,
-                (IMP)hook_controllerUpdateCategorySection,
-                (IMP *)&orig_controllerUpdateCategorySection);
-        }
-    }
 }
 
