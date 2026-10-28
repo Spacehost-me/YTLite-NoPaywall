@@ -46,12 +46,12 @@ static NSString *GetCacheSize() {
     %orig;
 
     BOOL isYTLite = [self.accessibilityIdentifier isEqualToString:@"YTLiteSectionItem"];
-    YTTouchFeedbackController *feedback = [self valueForKey:@"_touchFeedbackController"];
-    ABCSwitch *abcSwitch = [self valueForKey:@"_switch"];
+    YTTouchFeedbackController *feedback = safeKVC(self, @"_touchFeedbackController");
+    ABCSwitch *abcSwitch = safeKVC(self, @"_switch");
 
     if (isYTLite) {
-        feedback.feedbackColor = [UIColor colorWithRed:0.75 green:0.50 blue:0.90 alpha:1.0];
-        abcSwitch.onTintColor = [UIColor colorWithRed:0.75 green:0.50 blue:0.90 alpha:1.0];
+        if (feedback) feedback.feedbackColor = [UIColor colorWithRed:0.75 green:0.50 blue:0.90 alpha:1.0];
+        if (abcSwitch) abcSwitch.onTintColor = [UIColor colorWithRed:0.75 green:0.50 blue:0.90 alpha:1.0];
     }
 }
 %end
@@ -113,7 +113,8 @@ static NSString *GetCacheSize() {
 - (void)updateYTLiteSectionWithEntry:(id)entry {
     NSMutableArray *sectionItems = [NSMutableArray array];
     Class YTSettingsSectionItemClass = %c(YTSettingsSectionItem);
-    YTSettingsViewController *settingsViewController = [self valueForKey:@"_settingsViewControllerDelegate"];
+    YTSettingsViewController *settingsViewController = safeKVC(self, @"_settingsViewControllerDelegate");
+    if (!settingsViewController) return;
 
     YTSettingsSectionItem *space = [%c(YTSettingsSectionItem) itemWithTitle:nil accessibilityIdentifier:@"YTLiteSectionItem" detailTextBlock:nil selectBlock:nil];
 
@@ -492,10 +493,10 @@ static NSString *GetCacheSize() {
 
     YTSettingsSectionItem *support = [%c(YTSettingsSectionItem) itemWithTitle:LOC(@"SupportDevelopment") accessibilityIdentifier:@"YTLiteSectionItem" detailTextBlock:^NSString *() { return @"♡"; } selectBlock:^BOOL (YTSettingsCell *cell, NSUInteger arg1) {
         YTDefaultSheetController *sheetController = [%c(YTDefaultSheetController) sheetControllerWithMessage:LOC(@"SupportDevelopment") subMessage:LOC(@"SupportDevelopmentDesc") delegate:nil parentResponder:nil];
-        YTActionSheetHeaderView *headerView = [sheetController valueForKey:@"_headerView"];
-        YTFormattedStringLabel *subtitle = [headerView valueForKey:@"_subtitleLabel"];
-        subtitle.numberOfLines = 0;
-        [headerView showHeaderDivider];
+        YTActionSheetHeaderView *headerView = safeKVC(sheetController, @"_headerView");
+        YTFormattedStringLabel *subtitle = safeKVC(headerView, @"_subtitleLabel");
+        if (subtitle) subtitle.numberOfLines = 0;
+        if (headerView) [headerView showHeaderDivider];
 
         [sheetController addAction:[%c(YTActionSheetAction) actionWithTitle:@"PayPal" iconImage:[self resizedImageNamed:@"paypal"] secondaryIconImage:nil accessibilityIdentifier:nil handler:^ {
             [%c(YTUIUtils) openURL:[NSURL URLWithString:@"https://paypal.me/dayanch96"]];

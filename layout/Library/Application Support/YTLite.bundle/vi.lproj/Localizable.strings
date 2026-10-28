@@ -1,27 +1,3 @@
-/* Account section */
-"Account" = "Tài khoản";
-"SkipLogInAlert" = "Tạm tắt thông báo đăng nhập";
-"LogIn" = "Đăng nhập";
-"ManageAccount" = "Quản lý tài khoản";
-"AccessDenied" = "Truy cập bị từ chối";
-"LogOut" = "Đăng xuất";
-"LogOutTitle" = "Đăng xuất";
-"LogOutMessage" = "Bạn có chắc chắn muốn tiếp tục không?";
-"FeaturesNotActivated" = "Bạn hiện chưa đăng nhập. Để sử dụng được các tính năng của YouTube Plus, vui lòng đăng nhập bằng tài khoản đang có gói đăng ký hợp lệ.";
-
-/* Account status */
-"Access.Status" = "Status";
-"Access.Active" = "Active";
-"Access.AccountRequired" = "Account required";
-"Access.LogIn" = "Log in";
-"Access.DeviceLimit" = "Device limit reached";
-"Access.DeviceNotRegistered" = "Device is not linked";
-"Access.InsufficientPlan" = "Subscription level is too low";
-"Access.NotFound" = "Account not found";
-"Access.AppNotFound" = "App is not registered";
-"Access.SignInAgain" = "Sign in again";
-"Access.RequestError" = "Request error";
-
 /* Main section */
 "Main" = "Cài đặt chính";
 "Search" = "Tìm kiếm";

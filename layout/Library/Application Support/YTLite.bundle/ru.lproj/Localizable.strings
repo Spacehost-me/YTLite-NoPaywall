@@ -1,27 +1,3 @@
-/* Account section */
-"Account" = "Аккаунт";
-"SkipLogInAlert" = "Скрыть напоминание о входе";
-"LogIn" = "Авторизация";
-"ManageAccount" = "Управление аккаунтом";
-"AccessDenied" = "Нет доступа";
-"LogOut" = "Выйти";
-"LogOutTitle" = "Выход";
-"LogOutMessage" = "Уверены, что хотите продолжить?";
-"FeaturesNotActivated" = "Вы не вошли в аккаунт. Для доступа к функциям YouTube Plus войдите в аккаунт с активной подпиской.";
-
-/* Account status */
-"Access.Status" = "Статус";
-"Access.Active" = "Активен";
-"Access.AccountRequired" = "Нужен аккаунт";
-"Access.LogIn" = "Войти";
-"Access.DeviceLimit" = "Лимит устройств исчерпан";
-"Access.DeviceNotRegistered" = "Устройство не привязано";
-"Access.InsufficientPlan" = "Недостаточный уровень подписки";
-"Access.NotFound" = "Аккаунт не найден";
-"Access.AppNotFound" = "Приложение не найдено на сервере";
-"Access.SignInAgain" = "Требуется повторный вход";
-"Access.RequestError" = "Ошибка запроса";
-
 /* Main section */
 "Main" = "Основные";
 "Search" = "Поиск";

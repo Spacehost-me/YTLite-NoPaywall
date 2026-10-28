@@ -134,7 +134,7 @@ static UIImage *YTImageNamed(NSString *imageName) {
 - (void)viewDidLoad {
     %orig;
 
-    if (ytlBool(@"noVoiceSearchButton")) [self setValue:@(NO) forKey:@"_isVoiceSearchAllowed"];
+    if (ytlBool(@"noVoiceSearchButton")) safeSetKVC(self, @"_isVoiceSearchAllowed", @(NO));
 }
 
 - (void)setSuggestions:(id)arg1 { if (!ytlBool(@"noSearchHistory")) %orig; }
@@ -169,12 +169,15 @@ static UIImage *YTImageNamed(NSString *imageName) {
     NSString *resourcesPath = [[[NSBundle mainBundle] resourcePath] stringByAppendingPathComponent:@"Frameworks/Module_Framework.framework/Innertube_Resources.bundle"];
     NSBundle *frameworkBundle = [NSBundle bundleWithPath:resourcesPath];
 
-    if ([[image description] containsString:@"Resources: youtube_logo)"]) {
-        image = [UIImage imageNamed:@"youtube_premium_logo" inBundle:frameworkBundle compatibleWithTraitCollection:nil];
-    }
-
-    else if ([[image description] containsString:@"Resources: youtube_logo_dark)"]) {
-        image = [UIImage imageNamed:@"youtube_premium_logo_white" inBundle:frameworkBundle compatibleWithTraitCollection:nil];
+    if (frameworkBundle) {
+        NSString *desc = [image description];
+        if ([desc containsString:@"Resources: youtube_logo)"]) {
+            UIImage *replacement = [UIImage imageNamed:@"youtube_premium_logo" inBundle:frameworkBundle compatibleWithTraitCollection:nil];
+            if (replacement) image = replacement;
+        } else if ([desc containsString:@"Resources: youtube_logo_dark)"]) {
+            UIImage *replacement = [UIImage imageNamed:@"youtube_premium_logo_white" inBundle:frameworkBundle compatibleWithTraitCollection:nil];
+            if (replacement) image = replacement;
+        }
     }
 
     %orig(image);
@@ -322,40 +325,19 @@ static UIImage *YTImageNamed(NSString *imageName) {
 // Extra Speed Options
 %hook YTVarispeedSwitchController
 - (void)setDelegate:(id)arg1 {
-    NSMutableArray *optionsCopy = [[self valueForKey:@"_options"] mutableCopy];
-    NSArray *speedOptions = @[@"2.5", @"3", @"3.5", @"4", @"5"];
+    NSMutableArray *optionsCopy = [safeKVC(self, @"_options") mutableCopy];
 
-    for (NSString *title in speedOptions) {
-        float rate = [title floatValue];
-        YTVarispeedSwitchControllerOption *option = [[%c(YTVarispeedSwitchControllerOption) alloc] initWithTitle:title rate:rate];
-        [optionsCopy addObject:option];
+    if (optionsCopy && ytlBool(@"extraSpeedOptions")) {
+        NSArray *speedOptions = @[@"2.5", @"3", @"3.5", @"4", @"5"];
+        for (NSString *title in speedOptions) {
+            float rate = [title floatValue];
+            YTVarispeedSwitchControllerOption *option = [[%c(YTVarispeedSwitchControllerOption) alloc] initWithTitle:title rate:rate];
+            if (option) [optionsCopy addObject:option];
+        }
+        safeSetKVC(self, @"_options", [optionsCopy copy]);
     }
 
-    if (ytlBool(@"extraSpeedOptions")) [self setValue:[optionsCopy copy] forKey:@"_options"];
-
     return %orig;
-}
-%end
-
-// Temprorary Fix For 'Classic Video Quality' and 'Extra Speed Options'
-%hook YTVersionUtils
-+ (NSString *)appVersion {
-    NSString *originalVersion = %orig;
-    NSString *fakeVersion = @"18.18.2";
-
-    return (!ytlBool(@"classicQuality") && !ytlBool(@"extraSpeedOptions") && [originalVersion compare:fakeVersion options:NSNumericSearch] == NSOrderedDescending) ? originalVersion : fakeVersion;
-}
-%end
-
-// Show real version in YT Settings
-%hook YTSettingsCell
-- (void)setDetailText:(id)arg1 {
-    NSDictionary *infoDictionary = [[NSBundle mainBundle] infoDictionary];
-    NSString *appVersion = infoDictionary[@"CFBundleShortVersionString"];
-
-    if ([arg1 isEqualToString:@"18.18.2"]) {
-        arg1 = appVersion;
-    } %orig(arg1);
 }
 %end
 
@@ -438,8 +420,8 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
 
 %new
 - (void)autoFullscreen {
-    YTWatchController *watchController = [self valueForKey:@"_UIDelegate"];
-    [watchController showFullScreen];
+    YTWatchController *watchController = safeKVC(self, @"_UIDelegate");
+    if (watchController && [watchController respondsToSelector:@selector(showFullScreen)]) [watchController showFullScreen];
 }
 
 %new
@@ -628,7 +610,7 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
 // Remove Download button from the menu
 %hook YTDefaultSheetController
 - (void)addAction:(YTActionSheetAction *)action {
-    NSString *identifier = [action valueForKey:@"_accessibilityIdentifier"];
+    NSString *identifier = safeKVC(action, @"_accessibilityIdentifier");
 
     NSDictionary *actionsToRemove = @{
         @"7": @(ytlBool(@"removeDownloadMenu")),
@@ -640,7 +622,7 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
         @"58": @(ytlBool(@"removeReportMenu"))
     };
 
-    if (![actionsToRemove[identifier] boolValue]) {
+    if (!identifier || ![actionsToRemove[identifier] boolValue]) {
         %orig;
     }
 }
@@ -648,6 +630,8 @@ void autoSkipShorts(YTPlayerViewController *self, YTSingleVideoController *video
 
 // Hide buttons under the video player (@PoomSmart)
 static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *identifiers) {
+    if (!nodeController || ![nodeController respondsToSelector:@selector(children)]) return NO;
+
     for (id child in [nodeController children]) {
         if ([child isKindOfClass:%c(ELMNodeController)]) {
             NSArray <ELMComponent *> *elmChildren = [(ELMNodeController *)child children];
@@ -660,8 +644,8 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
         }
 
         if ([child isKindOfClass:%c(ASNodeController)]) {
-            ASDisplayNode *childNode = ((ASNodeController *)child).node; // ELMContainerNode
-            NSArray *yogaChildren = childNode.yogaChildren;
+            ASDisplayNode *childNode = ((ASNodeController *)child).node;
+            NSArray *yogaChildren = [childNode respondsToSelector:@selector(yogaChildren)] ? childNode.yogaChildren : nil;
             for (ASDisplayNode *displayNode in yogaChildren) {
                 if ([identifiers containsObject:displayNode.accessibilityIdentifier])
                     return YES;
@@ -921,7 +905,7 @@ static void genImageFromLayer(CALayer *layer, UIColor *backgroundColor, void (^c
 - (void)setFrame:(CGRect)frame {
     %orig;
 
-    if (ytlBool(@"commentManager") && [[self valueForKey:@"_accessibilityIdentifier"] isEqualToString:@"id.comment.content.label"]) {
+    if (ytlBool(@"commentManager") && [safeKVC(self, @"_accessibilityIdentifier") isEqualToString:@"id.comment.content.label"]) {
         if ([self isKindOfClass:NSClassFromString(@"ASTextNode")]) {
             ASTextNode *textNode = (ASTextNode *)self;
 
@@ -965,7 +949,7 @@ static void genImageFromLayer(CALayer *layer, UIColor *backgroundColor, void (^c
 
 %hook YTImageZoomNode
 - (BOOL)gestureRecognizer:(id)arg1 shouldRecognizeSimultaneouslyWithGestureRecognizer:(id)arg2 {
-    BOOL isImageLoaded = [self valueForKey:@"_didLoadImage"];
+    BOOL isImageLoaded = [safeKVC(self, @"_didLoadImage") boolValue];
     if (ytlBool(@"postManager") && isImageLoaded) {
         ASDisplayNode *displayNode = (ASDisplayNode *)self;
         ASNetworkImageNode *imageNode = (ASNetworkImageNode *)self;
@@ -1046,6 +1030,7 @@ static void genImageFromLayer(CALayer *layer, UIColor *backgroundColor, void (^c
 %new
 - (void)postManager:(UILongPressGestureRecognizer *)sender {
     if (sender.state == UIGestureRecognizerStateBegan) {
+        if (![self.keepalive_node respondsToSelector:@selector(yogaChildren)] || !self.keepalive_node.yogaChildren.count) return;
         ELMContainerNode *nodeForLayer = (ELMContainerNode *)self.keepalive_node.yogaChildren[0];
         ELMContainerNode *containerNode = (ELMContainerNode *)self.keepalive_node;
         NSString *text = containerNode.copiedComment;
@@ -1303,9 +1288,9 @@ CGFloat rateBeforeSpeedmaster = 1.0;
 static void manageSpeedmasterYTLite(UILongPressGestureRecognizer *gesture, YTMainAppVideoPlayerOverlayViewController *delegate, YTInlinePlayerScrubUserEducationView *edu) {
     NSArray *speedLabels = @[@0, @2.0, @0.25, @0.5, @0.75, @1.0, @1.25, @1.5, @1.75, @2.0, @3.0, @4.0, @5.0];
 
-    YTLabel *label = [edu valueForKey:@"_userEducationLabel"];
+    YTLabel *label = safeKVC(edu, @"_userEducationLabel");
     edu.labelType = 1;
-    [label setValue:[NSString stringWithFormat:@"%@: %@×", LOC(@"PlaybackSpeed"), speedLabels[ytlInt(@"speedIndex")]] forKey:@"text"];
+    if (label) safeSetKVC(label, @"text", [NSString stringWithFormat:@"%@: %@×", LOC(@"PlaybackSpeed"), speedLabels[ytlInt(@"speedIndex")]]);
 
     if (gesture.state == UIGestureRecognizerStateBegan) {
         rateBeforeSpeedmaster = delegate.currentPlaybackRate;
@@ -1340,9 +1325,10 @@ static void manageSpeedmasterYTLite(UILongPressGestureRecognizer *gesture, YTMai
     if (ytlInt(@"speedIndex") == 0) return;
     if (ytlInt(@"speedIndex") == 1) return %orig;
 
-    YTMainAppVideoPlayerOverlayViewController *delegate = [self valueForKey:@"_delegate"];
+    YTMainAppVideoPlayerOverlayViewController *delegate = safeKVC(self, @"_delegate");
+    if (!delegate) return;
     YTInlinePlayerScrubUserEducationView *edu = (YTInlinePlayerScrubUserEducationView *)delegate.videoPlayerOverlayView.scrubUserEducationView;
-    manageSpeedmasterYTLite(gesture, delegate, edu);
+    if (edu) manageSpeedmasterYTLite(gesture, delegate, edu);
 }
 %end
 

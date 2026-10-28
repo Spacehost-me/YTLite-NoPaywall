@@ -14,6 +14,16 @@
 #define ytlSetBool(value, key) [[YTLUserDefaults standardUserDefaults] setBool:(value) forKey:(key)]
 #define ytlSetInt(value, key) [[YTLUserDefaults standardUserDefaults] setInteger:(value) forKey:(key)]
 
+static inline id safeKVC(id obj, NSString *key) {
+    @try { return [obj valueForKey:key]; }
+    @catch (NSException *e) { return nil; }
+}
+
+static inline void safeSetKVC(id obj, NSString *key, id value) {
+    @try { [obj setValue:value forKey:key]; }
+    @catch (NSException *e) { }
+}
+
 @interface YTTouchFeedbackController : YTCollectionViewCell
 @property (nonatomic, strong, readwrite) UIColor *feedbackColor;
 @end

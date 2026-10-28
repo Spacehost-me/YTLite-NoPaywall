@@ -1,27 +1,3 @@
-/* Account section */
-"Account" = "Cuenta";
-"SkipLogInAlert" = "Suprimir recordatorio de inicio de sesión";
-"LogIn" = "Iniciar sesión";
-"ManageAccount" = "Administrar cuenta";
-"AccessDenied" = "Acceso denegado";
-"LogOut" = "Cerrar sesión";
-"LogOutTitle" = "Cerrar sesión";
-"LogOutMessage" = "¿Seguro que quieres continuar?";
-"FeaturesNotActivated" = "No has iniciado sesión. Para acceder a las características de YouTube Plus, por favor inicia sesión con una cuenta con una suscripción activa.";
-
-/* Account status */
-"Access.Status" = "Status";
-"Access.Active" = "Active";
-"Access.AccountRequired" = "Account required";
-"Access.LogIn" = "Log in";
-"Access.DeviceLimit" = "Device limit reached";
-"Access.DeviceNotRegistered" = "Device is not linked";
-"Access.InsufficientPlan" = "Subscription level is too low";
-"Access.NotFound" = "Account not found";
-"Access.AppNotFound" = "App is not registered";
-"Access.SignInAgain" = "Sign in again";
-"Access.RequestError" = "Request error";
-
 /* Main section */
 "Main" = "Principal";
 "Search" = "Buscar";

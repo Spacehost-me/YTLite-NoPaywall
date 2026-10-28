@@ -1,27 +1,3 @@
-/* Account section */
-"Account" = "帳戶";
-"SkipLogInAlert" = "隱藏登入提醒";
-"LogIn" = "登入";
-"ManageAccount" = "管理帳戶";
-"AccessDenied" = "存取被拒";
-"LogOut" = "登出";
-"LogOutTitle" = "登出";
-"LogOutMessage" = "您確定要繼續嗎？";
-"FeaturesNotActivated" = "您尚未登入。請使用具備有效訂閱的帳號登入，以使用 YouTube Plus 功能。";
-
-/* Account status */
-"Access.Status" = "狀態";
-"Access.Active" = "啟用";
-"Access.AccountRequired" = "需要帳戶";
-"Access.LogIn" = "登入";
-"Access.DeviceLimit" = "已達裝置數量上限";
-"Access.DeviceNotRegistered" = "裝置未連結";
-"Access.InsufficientPlan" = "訂閱等級過低";
-"Access.NotFound" = "找不到帳戶";
-"Access.AppNotFound" = "應用程式未註冊";
-"Access.SignInAgain" = "請重新登入";
-"Access.RequestError" = "請求錯誤";
-
 /* Main section */
 "Main" = "主要";
 "Search" = "搜尋";

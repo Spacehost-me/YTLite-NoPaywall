@@ -1,27 +1,3 @@
-/* Account section */
-"Account" = "계정";
-"SkipLogInAlert" = "로그인 알림 비활성화";
-"LogIn" = "로그인";
-"ManageAccount" = "계정 관리";
-"AccessDenied" = "접근 거부됨";
-"LogOut" = "로그아웃";
-"LogOutTitle" = "로그아웃";
-"LogOutMessage" = "정말 계속하시겠습니까?";
-"FeaturesNotActivated" = "로그인되어 있지 않습니다. YouTube Plus 기능을 사용하려면 활성 구독이 있는 계정으로 로그인하세요.";
-
-/* Account status */
-"Access.Status" = "구독 상태";
-"Access.Active" = "활성화됨";
-"Access.AccountRequired" = "계정 필요";
-"Access.LogIn" = "로그인";
-"Access.DeviceLimit" = "기기 제한 초과";
-"Access.DeviceNotRegistered" = "기기가 등록되지 않음";
-"Access.InsufficientPlan" = "구독 등급 부족";
-"Access.NotFound" = "계정을 찾을 수 없음";
-"Access.AppNotFound" = "앱이 등록되지 않음";
-"Access.SignInAgain" = "다시 로그인";
-"Access.RequestError" = "요청 오류";
-
 /* Main section */
 "Main" = "메인";
 "Search" = "검색";
