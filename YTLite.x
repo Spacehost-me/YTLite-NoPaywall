@@ -341,9 +341,9 @@ static UIImage *YTImageNamed(NSString *imageName) {
 }
 %end
 
-// Disable Snap To Chapter (https://github.com/qnblackcat/uYouPlus/blob/main/uYouPlus.xm#L457-464)
-%hook YTSegmentableInlinePlayerBarView
-- (void)didMoveToWindow { %orig; if (ytlBool(@"dontSnapToChapter")) self.enableSnapToChapter = NO; }
+// Disable Snap To Chapter — YTSegmentableInlinePlayerBarView removed in YT 21.x, property moved to YTIPlayerBarPlayingState
+%hook YTIPlayerBarPlayingState
+- (BOOL)enableSnapToChapter { return ytlBool(@"dontSnapToChapter") ? NO : %orig; }
 %end
 
 // Red Progress Bar and Gray Buffer Progress
@@ -351,7 +351,8 @@ static UIImage *YTImageNamed(NSString *imageName) {
 - (id)quietProgressBarColor { return ytlBool(@"redProgressBar") ? [UIColor redColor] : %orig; }
 %end
 
-%hook YTSegmentableInlinePlayerBarView
+// Buffer bar color — YTSegmentableInlinePlayerBarView removed in YT 21.x, method moved to YTPlayerBarSegmentView
+%hook YTPlayerBarSegmentView
 - (void)setBufferedProgressBarColor:(id)arg1 { if (ytlBool(@"redProgressBar")) %orig([UIColor colorWithRed:0.65 green:0.65 blue:0.65 alpha:0.60]); }
 %end
 
@@ -710,12 +711,6 @@ static BOOL findCell(ASNodeController *nodeController, NSArray <NSString *> *ide
 
 // Shorts Progress Bar (https://github.com/PoomSmart/YTShortsProgress)
 %hook YTReelPlayerViewController
-- (BOOL)shouldEnablePlayerBar { return ytlBool(@"shortsProgress") ? YES : NO; }
-- (BOOL)shouldAlwaysEnablePlayerBar { return ytlBool(@"shortsProgress") ? YES : NO; }
-- (BOOL)shouldEnablePlayerBarOnlyOnPause { return ytlBool(@"shortsProgress") ? NO : YES; }
-%end
-
-%hook YTReelPlayerViewControllerSub
 - (BOOL)shouldEnablePlayerBar { return ytlBool(@"shortsProgress") ? YES : NO; }
 - (BOOL)shouldAlwaysEnablePlayerBar { return ytlBool(@"shortsProgress") ? YES : NO; }
 - (BOOL)shouldEnablePlayerBarOnlyOnPause { return ytlBool(@"shortsProgress") ? NO : YES; }

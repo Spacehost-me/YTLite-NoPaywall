@@ -222,8 +222,11 @@ static inline void safeSetKVC(id obj, NSString *key, id value) {
 - (void)didTapCopyInfoButton:(UIButton *)sender;
 @end
 
-@interface YTSegmentableInlinePlayerBarView : UIView
+@interface YTIPlayerBarPlayingState : NSObject
 @property (nonatomic, assign, readwrite) BOOL enableSnapToChapter;
+@end
+
+@interface YTPlayerBarSegmentView : UIView
 @end
 
 @interface YTPlayabilityResolutionUserActionUIController : NSObject
